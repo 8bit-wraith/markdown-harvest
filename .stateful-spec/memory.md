@@ -17,7 +17,7 @@ A Rust crate designed to extract, clean, and convert web content from URLs found
 
 ## Active Work
 
-HTTP configuration options: see history/001-http-config-options.md. Functional tests/build and additional controls pass; patch ready for review, whole-project lint/format gates remain failing.
+HTTP configuration options: see history/001-http-config-options.md. Functional controls and all local quality gates pass; see history/002-quality-gates.md for baseline cleanup and fixture portability. Cross-platform hosted verification remains pending.
 
 ## History Index
 

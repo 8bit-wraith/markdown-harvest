@@ -4,7 +4,7 @@ use crate::{
 use std::future::Future;
 
 #[cfg(feature = "chunks")]
-use text_splitter::{MarkdownSplitter, ChunkConfig};
+use text_splitter::{ChunkConfig, MarkdownSplitter};
 
 /// Main struct for extracting and converting web content from URLs to Markdown.
 ///
@@ -137,11 +137,11 @@ impl MarkdownHarvester {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let text = "Check out https://example.com and https://httpbin.org/json";
     ///     let config = HttpConfig::builder().timeout(30000).build();
-    ///     
+    ///
     ///     // Collect results in a thread-safe vector
     ///     let results = Arc::new(Mutex::new(Vec::new()));
     ///     let results_clone = results.clone();
-    ///     
+    ///
     ///     let callback = move |url: Option<String>, content: Option<String>| {
     ///         let results = results_clone.clone();
     ///         async move {
@@ -151,12 +151,12 @@ impl MarkdownHarvester {
     ///             }
     ///         }
     ///     };
-    ///     
+    ///
     ///     MarkdownHarvester::get_hyperlinks_content_async(text.to_string(), config, callback).await?;
-    ///     
+    ///
     ///     let final_results = results.lock().unwrap();
     ///     println!("Processed {} URLs", final_results.len());
-    ///     
+    ///
     ///     Ok(())
     /// }
     /// ```
@@ -170,7 +170,7 @@ impl MarkdownHarvester {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let text = "Visit https://example.com for more info";
     ///     let config = HttpConfig::default();
-    ///     
+    ///
     ///     // Process and display results immediately as they arrive
     ///     let callback = |url: Option<String>, content: Option<String>| async move {
     ///         match (url, content) {
@@ -185,9 +185,9 @@ impl MarkdownHarvester {
     ///             _ => unreachable!(),
     ///         }
     ///     };
-    ///     
+    ///
     ///     MarkdownHarvester::get_hyperlinks_content_async(text.to_string(), config, callback).await?;
-    ///     
+    ///
     ///     Ok(())
     /// }
     /// ```
@@ -206,13 +206,13 @@ impl MarkdownHarvester {
     ///         .max_redirect(5)
     ///         .cookie_store(true)
     ///         .build();
-    ///     
+    ///
     ///     let callback = |url: Option<String>, content: Option<String>| async move {
     ///         if let (Some(url), Some(content)) = (url, content) {
     ///             // Extract domain for filename
     ///             let domain = url.split('/').nth(2).unwrap_or("unknown");
     ///             let filename = format!("{}.md", domain.replace('.', "_"));
-    ///             
+    ///
     ///             // Save each result to a separate file
     ///             if let Err(e) = fs::write(&filename, &content).await {
     ///                 eprintln!("Failed to save {}: {}", filename, e);
@@ -221,9 +221,9 @@ impl MarkdownHarvester {
     ///             }
     ///         }
     ///     };
-    ///     
+    ///
     ///     MarkdownHarvester::get_hyperlinks_content_async(text.to_string(), config, callback).await?;
-    ///     
+    ///
     ///     Ok(())
     /// }
     /// ```
@@ -254,7 +254,7 @@ impl MarkdownHarvester {
     ///
     /// Use the synchronous version for:
     /// - When you need all results collected before proceeding
-    /// - Educational purposes or prototypes  
+    /// - Educational purposes or prototypes
     /// - Simple applications with straightforward workflows
     /// - When you don't need streaming results
     ///
@@ -299,7 +299,7 @@ impl MarkdownHarvester {
     /// Extracts URLs from the given text and returns their content as Markdown chunks for RAG systems.
     ///
     /// This method is similar to `get_hyperlinks_content` but splits the Markdown content into smaller
-    /// semantic chunks using `MarkdownSplitter` that are ideal for vector generation in Retrieval-Augmented 
+    /// semantic chunks using `MarkdownSplitter` that are ideal for vector generation in Retrieval-Augmented
     /// Generation (RAG) architectures. The splitter respects Markdown structure and semantic boundaries.
     ///
     /// **Feature Required**: This method is only available when the `chunks` feature is enabled.
@@ -336,14 +336,14 @@ impl MarkdownHarvester {
     ///     let text = "Check out this article: https://example.com/article";
     ///     let config = HttpConfig::default();
     ///     let chunk_size = 1000; // 1000 characters per chunk
-    ///     
+    ///
     ///     let results = MarkdownHarvester::get_hyperlinks_content_as_chunks(
-    ///         text.to_string(), 
-    ///         config, 
+    ///         text.to_string(),
+    ///         config,
     ///         chunk_size,
     ///         Some(100) // 100 characters overlap for better context preservation
     ///     );
-    ///     
+    ///
     ///     for (url, chunks) in results {
     ///         println!("URL: {}", url);
     ///         println!("Number of semantic chunks: {}", chunks.len());
@@ -370,26 +370,29 @@ impl MarkdownHarvester {
     /// - Consider using the async version for multiple URLs
     #[cfg(feature = "chunks")]
     pub fn get_hyperlinks_content_as_chunks(
-        text: String, 
+        text: String,
         http_config: HttpConfig,
         chunk_size: usize,
         chunk_overlap: Option<usize>,
     ) -> Vec<(String, Vec<String>)> {
         // First get the regular markdown content
         let markdown_results = Self::get_hyperlinks_content(text, http_config);
-        
+
         if markdown_results.is_empty() {
             return Vec::new();
         }
 
         // Validate overlap parameter
-        if let Some(overlap) = chunk_overlap {
-            if overlap >= chunk_size {
-                // Return error as empty result for now - in a real implementation,
-                // we would return a proper Result type
-                eprintln!("Warning: chunk_overlap ({}) must be smaller than chunk_size ({})", overlap, chunk_size);
-                return Vec::new();
-            }
+        if let Some(overlap) = chunk_overlap
+            && overlap >= chunk_size
+        {
+            // Return error as empty result for now - in a real implementation,
+            // we would return a proper Result type
+            eprintln!(
+                "Warning: chunk_overlap ({}) must be smaller than chunk_size ({})",
+                overlap, chunk_size
+            );
+            return Vec::new();
         }
 
         // Initialize Markdown splitter with ChunkConfig including overlap
@@ -403,31 +406,31 @@ impl MarkdownHarvester {
                         return Vec::new();
                     }
                 }
-            },
+            }
             None => ChunkConfig::new(chunk_size),
         };
         let splitter = MarkdownSplitter::new(config);
-        
+
         let mut chunked_results = Vec::new();
-        
+
         for (url, markdown_content) in markdown_results {
             // Split the markdown content into semantic chunks
             let chunks: Vec<String> = splitter
                 .chunks(&markdown_content)
                 .map(|chunk| chunk.to_string())
                 .collect();
-            
+
             chunked_results.push((url, chunks));
         }
-        
+
         chunked_results
     }
 
     /// Extracts URLs from text and processes their content as Markdown chunks asynchronously with custom callback handling.
     ///
     /// This asynchronous method provides high-performance parallel processing of multiple URLs
-    /// while splitting their content into semantic Markdown chunks suitable for RAG systems. 
-    /// Unlike the synchronous version, this method processes URLs concurrently and streams 
+    /// while splitting their content into semantic Markdown chunks suitable for RAG systems.
+    /// Unlike the synchronous version, this method processes URLs concurrently and streams
     /// chunked results through a user-provided callback.
     ///
     /// **Feature Required**: This method is only available when the `chunks` feature is enabled.
@@ -478,11 +481,11 @@ impl MarkdownHarvester {
     ///     let text = "Research these: https://example.com https://httpbin.org/json";
     ///     let config = HttpConfig::default();
     ///     let chunk_size = 800; // 800 characters per chunk
-    ///     
+    ///
     ///     // Collect all semantic chunks in a thread-safe vector
     ///     let all_chunks = Arc::new(Mutex::new(Vec::new()));
     ///     let chunks_clone = all_chunks.clone();
-    ///     
+    ///
     ///     let callback = move |url: Option<String>, chunks: Option<Vec<String>>| {
     ///         let chunks_ref = chunks_clone.clone();
     ///         async move {
@@ -493,18 +496,18 @@ impl MarkdownHarvester {
     ///             }
     ///         }
     ///     };
-    ///     
+    ///
     ///     MarkdownHarvester::get_hyperlinks_content_as_chunks_async(
-    ///         text.to_string(), 
-    ///         config, 
+    ///         text.to_string(),
+    ///         config,
     ///         chunk_size,
     ///         Some(50), // 50 characters overlap
     ///         callback
     ///     ).await?;
-    ///     
+    ///
     ///     let final_results = all_chunks.lock().unwrap();
     ///     println!("📊 Total URLs processed: {}", final_results.len());
-    ///     
+    ///
     ///     Ok(())
     /// }
     /// ```
@@ -520,20 +523,20 @@ impl MarkdownHarvester {
     ///     let text = "Process https://example.com for RAG pipeline";
     ///     let config = HttpConfig::builder().timeout(10000).build();
     ///     let chunk_size = 1200;
-    ///     
+    ///
     ///     // Process semantic chunks immediately as they arrive
     ///     let callback = |url: Option<String>, chunks: Option<Vec<String>>| async move {
     ///         match (url, chunks) {
     ///             (Some(url), Some(chunks)) => {
     ///                 println!("🔗 URL: {}", url);
     ///                 println!("📦 Generated {} semantic chunks:", chunks.len());
-    ///                 
+    ///
     ///                 for (i, chunk) in chunks.iter().enumerate() {
     ///                     println!("  Semantic Chunk {}: {} chars", i + 1, chunk.len());
-    ///                     
+    ///
     ///                     // RAG Pipeline Processing:
     ///                     // - Generate embeddings for each semantic chunk
-    ///                     // - Store chunks with metadata in vector database  
+    ///                     // - Store chunks with metadata in vector database
     ///                     // - Index chunks for semantic search
     ///                     // - Maintain document structure context
     ///                 }
@@ -544,7 +547,7 @@ impl MarkdownHarvester {
     ///             _ => unreachable!(),
     ///         }
     ///     };
-    ///     
+    ///
     ///     MarkdownHarvester::get_hyperlinks_content_as_chunks_async(
     ///         text.to_string(),
     ///         config,
@@ -552,7 +555,7 @@ impl MarkdownHarvester {
     ///         Some(100), // 100 characters overlap for context preservation
     ///         callback
     ///     ).await?;
-    ///     
+    ///
     ///     Ok(())
     /// }
     /// ```
@@ -583,7 +586,7 @@ impl MarkdownHarvester {
         Fut: Future<Output = ()>,
     {
         let callback_clone = callback.clone();
-        
+
         Self::get_hyperlinks_content_async(
             text,
             http_config,
@@ -593,11 +596,11 @@ impl MarkdownHarvester {
                     match (url, content) {
                         (Some(url), Some(content)) => {
                             // Validate overlap parameter
-                            if let Some(overlap) = chunk_overlap {
-                                if overlap >= chunk_size {
-                                    eprintln!("Warning: chunk_overlap ({}) must be smaller than chunk_size ({})", overlap, chunk_size);
-                                    return;
-                                }
+                            if let Some(overlap) = chunk_overlap
+                                && overlap >= chunk_size
+                            {
+                                eprintln!("Warning: chunk_overlap ({}) must be smaller than chunk_size ({})", overlap, chunk_size);
+                                return;
                             }
 
                             // Initialize Markdown splitter with ChunkConfig including overlap
@@ -615,13 +618,13 @@ impl MarkdownHarvester {
                                 None => ChunkConfig::new(chunk_size),
                             };
                             let splitter = MarkdownSplitter::new(config);
-                            
+
                             // Split content into semantic Markdown chunks
                             let chunks: Vec<String> = splitter
                                 .chunks(&content)
                                 .map(|chunk| chunk.to_string())
                                 .collect();
-                            
+
                             // Call the user's callback with semantic chunks
                             callback(Some(url), Some(chunks)).await;
                         }
@@ -676,7 +679,8 @@ mod tests {
             let text = String::new();
             let config = HttpConfig::default();
             let chunk_size = 1000;
-            let results = MarkdownHarvester::get_hyperlinks_content_as_chunks(text, config, chunk_size, None);
+            let results =
+                MarkdownHarvester::get_hyperlinks_content_as_chunks(text, config, chunk_size, None);
             assert!(results.is_empty());
         }
 
@@ -686,7 +690,12 @@ mod tests {
             let config = HttpConfig::default();
             let chunk_size = 1000;
             let chunk_overlap = Some(100);
-            let results = MarkdownHarvester::get_hyperlinks_content_as_chunks(text, config, chunk_size, chunk_overlap);
+            let results = MarkdownHarvester::get_hyperlinks_content_as_chunks(
+                text,
+                config,
+                chunk_size,
+                chunk_overlap,
+            );
             assert!(results.is_empty());
         }
 
@@ -695,7 +704,8 @@ mod tests {
             let text = "This is just plain text without any URLs.".to_string();
             let config = HttpConfig::default();
             let chunk_size = 1000;
-            let results = MarkdownHarvester::get_hyperlinks_content_as_chunks(text, config, chunk_size, None);
+            let results =
+                MarkdownHarvester::get_hyperlinks_content_as_chunks(text, config, chunk_size, None);
             assert!(results.is_empty());
         }
 
@@ -705,7 +715,12 @@ mod tests {
             let config = HttpConfig::default();
             let chunk_size = 1000;
             let chunk_overlap = Some(200);
-            let results = MarkdownHarvester::get_hyperlinks_content_as_chunks(text, config, chunk_size, chunk_overlap);
+            let results = MarkdownHarvester::get_hyperlinks_content_as_chunks(
+                text,
+                config,
+                chunk_size,
+                chunk_overlap,
+            );
             assert!(results.is_empty());
         }
 
@@ -715,20 +730,24 @@ mod tests {
             let text = "Check out this article: https://example.com/article".to_string();
             let config = HttpConfig::default();
             let chunk_size = 500; // Medium chunk size for testing
-            
+
             // This will return empty since we can't actually fetch the URL in tests
             // but we're testing that the function structure works with MarkdownSplitter
-            let results = MarkdownHarvester::get_hyperlinks_content_as_chunks(text, config, chunk_size, None);
-            
+            let results =
+                MarkdownHarvester::get_hyperlinks_content_as_chunks(text, config, chunk_size, None);
+
             // In a real scenario with mocked HTTP client, we would test:
             // - That Markdown content is properly chunked with semantic boundaries
             // - That URL association is maintained
             // - That MarkdownSplitter preserves document structure
             // - That chunk sizes respect semantic boundaries
             // For now, we verify the function doesn't panic and returns the expected type
-            assert!(results.is_empty() || results.iter().all(|(url, chunks)| {
-                !url.is_empty() && chunks.iter().all(|chunk| !chunk.is_empty())
-            }));
+            assert!(
+                results.is_empty()
+                    || results.iter().all(|(url, chunks)| {
+                        !url.is_empty() && chunks.iter().all(|chunk| !chunk.is_empty())
+                    })
+            );
         }
 
         #[tokio::test]
@@ -736,7 +755,7 @@ mod tests {
             let text = String::new();
             let config = HttpConfig::default();
             let chunk_size = 1000;
-            
+
             let callback = |url: Option<String>, chunks: Option<Vec<String>>| {
                 async move {
                     // This should be called once with (None, None) for empty text
@@ -745,9 +764,10 @@ mod tests {
             };
 
             let result = MarkdownHarvester::get_hyperlinks_content_as_chunks_async(
-                text, config, chunk_size, None, callback
-            ).await;
-            
+                text, config, chunk_size, None, callback,
+            )
+            .await;
+
             assert!(result.is_ok());
         }
 
@@ -756,7 +776,7 @@ mod tests {
             let text = "This is just plain text without any URLs.".to_string();
             let config = HttpConfig::default();
             let chunk_size = 1000;
-            
+
             let callback = |url: Option<String>, chunks: Option<Vec<String>>| {
                 async move {
                     // Should be called with (None, None) when no URLs found
@@ -765,9 +785,10 @@ mod tests {
             };
 
             let result = MarkdownHarvester::get_hyperlinks_content_as_chunks_async(
-                text, config, chunk_size, None, callback
-            ).await;
-            
+                text, config, chunk_size, None, callback,
+            )
+            .await;
+
             assert!(result.is_ok());
         }
 
@@ -776,7 +797,7 @@ mod tests {
             let text = "Visit https://example.com for info".to_string();
             let config = HttpConfig::default();
             let chunk_size = 800; // Good size for semantic chunking
-            
+
             // Test that the callback is called with the expected signature
             let callback = |url: Option<String>, chunks: Option<Vec<String>>| {
                 async move {
@@ -801,9 +822,10 @@ mod tests {
             };
 
             let result = MarkdownHarvester::get_hyperlinks_content_as_chunks_async(
-                text, config, chunk_size, None, callback
-            ).await;
-            
+                text, config, chunk_size, None, callback,
+            )
+            .await;
+
             assert!(result.is_ok());
         }
 
@@ -811,29 +833,32 @@ mod tests {
         fn test_markdown_chunk_size_validation() {
             let text = "Test https://example.com".to_string();
             let config = HttpConfig::default();
-            
+
             // Test different chunk sizes with MarkdownSplitter
             let chunk_sizes = vec![100, 500, 1000, 2000, 5000];
-            
+
             for chunk_size in chunk_sizes {
                 let results = MarkdownHarvester::get_hyperlinks_content_as_chunks(
-                    text.clone(), 
-                    config.clone(), 
+                    text.clone(),
+                    config.clone(),
                     chunk_size,
-                    None
+                    None,
                 );
-                
+
                 // MarkdownSplitter should handle all chunk sizes without panicking
                 // In real scenarios with content, we'd verify:
                 // - Semantic boundaries are respected
-                // - Document structure is preserved  
+                // - Document structure is preserved
                 // - Chunks don't exceed specified size (with reasonable margin for semantic splitting)
-                assert!(results.is_empty() || results.iter().all(|(_, chunks)| {
-                    chunks.iter().all(|chunk| {
-                        // Allow semantic splitting to exceed size slightly for boundary preservation
-                        chunk.len() <= chunk_size * 2 // Generous margin for semantic boundaries
-                    })
-                }));
+                assert!(
+                    results.is_empty()
+                        || results.iter().all(|(_, chunks)| {
+                            chunks.iter().all(|chunk| {
+                                // Allow semantic splitting to exceed size slightly for boundary preservation
+                                chunk.len() <= chunk_size * 2 // Generous margin for semantic boundaries
+                            })
+                        })
+                );
             }
         }
 
@@ -844,20 +869,22 @@ mod tests {
             let text = "Check https://example.com/docs".to_string();
             let config = HttpConfig::default();
             let chunk_size = 1000;
-            
-            let results = MarkdownHarvester::get_hyperlinks_content_as_chunks(
-                text, config, chunk_size, None
-            );
-            
+
+            let results =
+                MarkdownHarvester::get_hyperlinks_content_as_chunks(text, config, chunk_size, None);
+
             // Verify structure without real HTTP calls
             // In production tests with mocked HTTP responses containing Markdown:
             // - Headers should be preserved with their content
             // - Code blocks should stay intact
             // - Lists should be kept together when possible
             // - Paragraphs should be preserved as semantic units
-            assert!(results.is_empty() || results.iter().all(|(url, chunks)| {
-                !url.is_empty() && chunks.iter().all(|chunk| !chunk.is_empty())
-            }));
+            assert!(
+                results.is_empty()
+                    || results.iter().all(|(url, chunks)| {
+                        !url.is_empty() && chunks.iter().all(|chunk| !chunk.is_empty())
+                    })
+            );
         }
 
         #[test]
@@ -865,22 +892,25 @@ mod tests {
             let text = "Test https://example.com".to_string();
             let config = HttpConfig::default();
             let chunk_size = 1000;
-            
+
             // Test valid overlap values
             let valid_overlaps = vec![50, 100, 200, 500, 999];
             for overlap in valid_overlaps {
                 let results = MarkdownHarvester::get_hyperlinks_content_as_chunks(
-                    text.clone(), 
-                    config.clone(), 
-                    chunk_size, 
-                    Some(overlap)
+                    text.clone(),
+                    config.clone(),
+                    chunk_size,
+                    Some(overlap),
                 );
-                
+
                 // Should not panic with valid overlap values
                 // Results are empty since no actual HTTP requests are made in tests
-                assert!(results.is_empty() || results.iter().all(|(url, chunks)| {
-                    !url.is_empty() && chunks.iter().all(|chunk| !chunk.is_empty())
-                }));
+                assert!(
+                    results.is_empty()
+                        || results.iter().all(|(url, chunks)| {
+                            !url.is_empty() && chunks.iter().all(|chunk| !chunk.is_empty())
+                        })
+                );
             }
         }
 
@@ -889,17 +919,17 @@ mod tests {
             let text = "Test https://example.com".to_string();
             let config = HttpConfig::default();
             let chunk_size = 500;
-            
+
             // Test invalid overlap values (>= chunk_size)
             let invalid_overlaps = vec![500, 600, 1000];
             for overlap in invalid_overlaps {
                 let results = MarkdownHarvester::get_hyperlinks_content_as_chunks(
-                    text.clone(), 
-                    config.clone(), 
-                    chunk_size, 
-                    Some(overlap)
+                    text.clone(),
+                    config.clone(),
+                    chunk_size,
+                    Some(overlap),
                 );
-                
+
                 // Should return empty results for invalid overlap values
                 assert!(results.is_empty());
             }
@@ -911,7 +941,7 @@ mod tests {
             let config = HttpConfig::default();
             let chunk_size = 800;
             let chunk_overlap = Some(100); // Valid overlap
-            
+
             let callback = |url: Option<String>, chunks: Option<Vec<String>>| {
                 async move {
                     match (url, chunks) {
@@ -929,9 +959,14 @@ mod tests {
             };
 
             let result = MarkdownHarvester::get_hyperlinks_content_as_chunks_async(
-                text, config, chunk_size, chunk_overlap, callback
-            ).await;
-            
+                text,
+                config,
+                chunk_size,
+                chunk_overlap,
+                callback,
+            )
+            .await;
+
             assert!(result.is_ok());
         }
 
@@ -941,7 +976,7 @@ mod tests {
             let config = HttpConfig::default();
             let chunk_size = 500;
             let invalid_overlap = Some(500); // Invalid: overlap >= chunk_size
-            
+
             let callback = |url: Option<String>, chunks: Option<Vec<String>>| {
                 async move {
                     // Should handle invalid overlap gracefully
@@ -950,9 +985,14 @@ mod tests {
             };
 
             let result = MarkdownHarvester::get_hyperlinks_content_as_chunks_async(
-                text, config, chunk_size, invalid_overlap, callback
-            ).await;
-            
+                text,
+                config,
+                chunk_size,
+                invalid_overlap,
+                callback,
+            )
+            .await;
+
             assert!(result.is_ok());
         }
     }
@@ -962,32 +1002,35 @@ mod tests {
     fn test_integration_workflow_with_chunks() {
         // This test verifies the overall workflow structure including chunks
         let text = "Check https://example.com and https://test.org".to_string();
-        let config = HttpConfig::builder()
-            .timeout(5000)
-            .build();
+        let config = HttpConfig::builder().timeout(5000).build();
 
         // Test synchronous version
         let sync_results = MarkdownHarvester::get_hyperlinks_content(text.clone(), config.clone());
-        
+
         // Test that it returns the expected structure (empty in unit tests since no real HTTP)
-        assert!(sync_results.is_empty() || sync_results.iter().all(|(url, content)| {
-            !url.is_empty() && !content.is_empty()
-        }));
+        assert!(
+            sync_results.is_empty()
+                || sync_results
+                    .iter()
+                    .all(|(url, content)| { !url.is_empty() && !content.is_empty() })
+        );
 
         // Test chunks version if feature is enabled
         #[cfg(feature = "chunks")]
         {
-            let chunk_results = MarkdownHarvester::get_hyperlinks_content_as_chunks(
-                text, config, 1000, None
-            );
-            
+            let chunk_results =
+                MarkdownHarvester::get_hyperlinks_content_as_chunks(text, config, 1000, None);
+
             // Verify same number of URLs processed
             assert_eq!(sync_results.len(), chunk_results.len());
-            
+
             // Verify structure with MarkdownSplitter
-            assert!(chunk_results.is_empty() || chunk_results.iter().all(|(url, chunks)| {
-                !url.is_empty() && chunks.iter().all(|chunk| !chunk.is_empty())
-            }));
+            assert!(
+                chunk_results.is_empty()
+                    || chunk_results.iter().all(|(url, chunks)| {
+                        !url.is_empty() && chunks.iter().all(|chunk| !chunk.is_empty())
+                    })
+            );
         }
     }
 }

@@ -574,6 +574,8 @@ mod config_regressions {
             while requests.len() < 2 {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        // Accepted sockets can inherit nonblocking mode on macOS.
+                        stream.set_nonblocking(false).unwrap();
                         stream
                             .set_read_timeout(Some(Duration::from_secs(1)))
                             .unwrap();
@@ -669,6 +671,8 @@ mod config_regressions {
             loop {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        // Accepted sockets can inherit nonblocking mode on macOS.
+                        stream.set_nonblocking(false).unwrap();
                         stream
                             .set_read_timeout(Some(Duration::from_secs(1)))
                             .unwrap();

@@ -69,11 +69,11 @@ fn try_semantic_tags(document: &Html) -> Option<String> {
     let semantic_selectors = ["article", "main", "[role='main']"];
 
     for selector_str in semantic_selectors.iter() {
-        if let Ok(selector) = Selector::parse(selector_str) {
-            if let Some(element) = document.select(&selector).next() {
-                // Found semantic tag, return its HTML
-                return Some(element.html());
-            }
+        if let Ok(selector) = Selector::parse(selector_str)
+            && let Some(element) = document.select(&selector).next()
+        {
+            // Found semantic tag, return its HTML
+            return Some(element.html());
         }
     }
 
@@ -94,10 +94,10 @@ fn try_content_selectors_direct(document: &Html) -> Option<String> {
     let class_selectors = [".content", ".article", ".post", ".entry"];
 
     for selector_str in class_selectors.iter() {
-        if let Ok(selector) = Selector::parse(selector_str) {
-            if let Some(element) = document.select(&selector).next() {
-                return Some(element.html());
-            }
+        if let Ok(selector) = Selector::parse(selector_str)
+            && let Some(element) = document.select(&selector).next()
+        {
+            return Some(element.html());
         }
     }
 
@@ -234,7 +234,7 @@ fn clear_content(content_html: String) -> String {
         relevant_html = regex.replace_all(&relevant_html, "").to_string();
     }
 
-    return relevant_html;
+    relevant_html
 }
 
 fn final_clean_from_markdown(markdown_content: String) -> String {
@@ -638,10 +638,7 @@ mod tests {
             !result.contains("Navigation"),
             "Should not contain navigation"
         );
-        assert!(
-            !result.contains("Sidebar"),
-            "Should not contain sidebar"
-        );
+        assert!(!result.contains("Sidebar"), "Should not contain sidebar");
     }
 
     #[test]
@@ -689,10 +686,7 @@ mod tests {
         let result = processor.html_to_markdown(html);
 
         // Validate extraction
-        assert!(
-            !result.is_empty(),
-            "Extracted content should not be empty"
-        );
+        assert!(!result.is_empty(), "Extracted content should not be empty");
 
         assert!(
             result.len() > 1000,
