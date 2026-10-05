@@ -3,27 +3,32 @@ name: Build
 on:
   workflow_dispatch:
   push:
-    paths-ignore: [ '*.md', 'assets/**', 'LICENSE', CHANGELOG.md ]
-    branches: [ 'feature/**', "release/**", "bug/**", "issue/**" ]
+    paths-ignore: ['*.md', 'assets/**', 'LICENSE', 'CHANGELOG.md']
+    branches: ['feature/**', 'release/**', 'bug/**', 'issue/**', 'aye/http-config-options']
   pull_request:
-    paths-ignore: [ '*.md', 'assets/**', 'LICENSE', CHANGELOG.md ]
-    branches: [ "main" ]
+    paths-ignore: ['*.md', 'assets/**', 'LICENSE', 'CHANGELOG.md']
+    branches: ['main']
+
+permissions:
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_BUILD_JOBS: 2
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
-      - uses: dtolnay/rust-toolchain@stable
-
       - uses: actions/checkout@v4
-
-      - name: Run tests with all features (including chunks)
-        run: cargo test --verbose --all-features
-
-      - name: Build with all features
-        run: cargo build --verbose --all-features
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test all features
+        run: cargo test --locked --all-features
+      - name: Build all features
+        run: cargo build --locked --all-features
