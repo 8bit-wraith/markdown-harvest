@@ -1,4 +1,4 @@
-use markdown_harvest::{MarkdownHarvester, HttpConfig};
+use markdown_harvest::{HttpConfig, MarkdownHarvester};
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 
@@ -7,8 +7,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🦀 Markdown Harvest - Asynchronous Chunking Example");
     println!("===================================================");
     println!();
-    println!("This example demonstrates the asynchronous get_hyperlinks_content_as_chunks_async function.");
-    println!("URLs will be processed in parallel and content split into semantic chunks for RAG systems.");
+    println!(
+        "This example demonstrates the asynchronous get_hyperlinks_content_as_chunks_async function."
+    );
+    println!(
+        "URLs will be processed in parallel and content split into semantic chunks for RAG systems."
+    );
     println!();
 
     // Get user input
@@ -19,9 +23,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Configure HTTP settings
     let http_config = HttpConfig::builder()
-        .timeout(30000)         // 30 second timeout
-        .max_redirect(3)        // Allow up to 3 redirects
-        .cookie_store(true)     // Enable cookie storage
+        .timeout(30000) // 30 second timeout
+        .max_redirect(3) // Allow up to 3 redirects
+        .cookie_store(true) // Enable cookie storage
         .build();
 
     println!("\n⚡ Processing URLs and creating chunks asynchronously...");
@@ -58,13 +62,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     drop(total);
 
                     println!("✅ Result #{}: {}", current_count, url);
-                    println!("📦 Chunks created: {} (Total so far: {})", chunks.len(), current_total);
+                    println!(
+                        "📦 Chunks created: {} (Total so far: {})",
+                        chunks.len(),
+                        current_total
+                    );
                     println!();
 
                     // Display each chunk with preview
                     for (chunk_idx, chunk) in chunks.iter().enumerate() {
                         println!("   📝 Chunk #{}: {} characters", chunk_idx + 1, chunk.len());
-                        
+
                         // Show chunk preview
                         let preview = if chunk.chars().count() > 120 {
                             let truncated: String = chunk.chars().take(80).collect();
@@ -76,7 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         println!("   Content: {}", preview);
                         println!();
                     }
-                    
+
                     println!("{}", "─".repeat(80));
                     println!();
                 }
@@ -92,18 +100,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Process URLs and create chunks asynchronously
     MarkdownHarvester::get_hyperlinks_content_as_chunks_async(
-        text, 
-        http_config, 
-        chunk_size, 
+        text,
+        http_config,
+        chunk_size,
         chunk_overlap,
-        callback
-    ).await?;
+        callback,
+    )
+    .await?;
 
     let duration = start_time.elapsed();
     let final_count = *processed_count.lock().unwrap();
     let final_total_chunks = *total_chunks.lock().unwrap();
 
-    println!("⏱️  Asynchronous chunking completed in {:.2}ms", duration.as_millis());
+    println!(
+        "⏱️  Asynchronous chunking completed in {:.2}ms",
+        duration.as_millis()
+    );
     println!("📊 Total URLs processed: {}", final_count);
     println!("📦 Total chunks created: {}", final_total_chunks);
     println!("✅ Asynchronous chunking example completed!");
@@ -111,8 +123,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("💡 Configuration used:");
     println!("   📦 Chunk size: {} characters", chunk_size);
     if let Some(overlap) = chunk_overlap {
-        println!("   🔗 Chunk overlap: {} characters ({:.1}%)", 
-                overlap, (overlap as f64 / chunk_size as f64) * 100.0);
+        println!(
+            "   🔗 Chunk overlap: {} characters ({:.1}%)",
+            overlap,
+            (overlap as f64 / chunk_size as f64) * 100.0
+        );
     } else {
         println!("   🔗 No chunk overlap");
     }
@@ -137,7 +152,7 @@ fn get_user_input() -> String {
     io::stdin()
         .read_line(&mut text)
         .expect("Error reading input");
-    
+
     text
 }
 
@@ -152,7 +167,9 @@ fn get_chunk_config() -> (usize, Option<usize>) {
     io::stdout().flush().expect("Failed to flush stdout");
 
     let mut choice = String::new();
-    io::stdin().read_line(&mut choice).expect("Error reading input");
+    io::stdin()
+        .read_line(&mut choice)
+        .expect("Error reading input");
 
     let chunk_size = match choice.trim() {
         "1" => 1000,
@@ -162,7 +179,9 @@ fn get_chunk_config() -> (usize, Option<usize>) {
             print!("Enter custom chunk size: ");
             io::stdout().flush().expect("Failed to flush stdout");
             let mut size = String::new();
-            io::stdin().read_line(&mut size).expect("Error reading input");
+            io::stdin()
+                .read_line(&mut size)
+                .expect("Error reading input");
             size.trim().parse().unwrap_or(1000)
         }
         _ => {
@@ -181,7 +200,9 @@ fn get_chunk_config() -> (usize, Option<usize>) {
     io::stdout().flush().expect("Failed to flush stdout");
 
     let mut overlap_choice = String::new();
-    io::stdin().read_line(&mut overlap_choice).expect("Error reading input");
+    io::stdin()
+        .read_line(&mut overlap_choice)
+        .expect("Error reading input");
 
     let chunk_overlap = match overlap_choice.trim() {
         "1" => None,
@@ -191,7 +212,9 @@ fn get_chunk_config() -> (usize, Option<usize>) {
             print!("Enter custom overlap size: ");
             io::stdout().flush().expect("Failed to flush stdout");
             let mut overlap = String::new();
-            io::stdin().read_line(&mut overlap).expect("Error reading input");
+            io::stdin()
+                .read_line(&mut overlap)
+                .expect("Error reading input");
             overlap.trim().parse().ok()
         }
         _ => {

@@ -1,4 +1,4 @@
-use markdown_harvest::{MarkdownHarvester, HttpConfig};
+use markdown_harvest::{HttpConfig, MarkdownHarvester};
 use std::io::{self, Write};
 
 fn main() {
@@ -14,9 +14,9 @@ fn main() {
 
     // Configure HTTP settings
     let http_config = HttpConfig::builder()
-        .timeout(30000)         // 30 second timeout
-        .max_redirect(3)        // Allow up to 3 redirects
-        .cookie_store(true)     // Enable cookie storage
+        .timeout(30000) // 30 second timeout
+        .max_redirect(3) // Allow up to 3 redirects
+        .cookie_store(true) // Enable cookie storage
         .build();
 
     println!("\n🔄 Processing URLs synchronously...");
@@ -24,10 +24,10 @@ fn main() {
     println!();
 
     let start_time = std::time::Instant::now();
-    
+
     // Process URLs synchronously
     let results = MarkdownHarvester::get_hyperlinks_content(text, http_config);
-    
+
     let duration = start_time.elapsed();
 
     // Display results
@@ -45,12 +45,15 @@ fn get_user_input() -> String {
     io::stdin()
         .read_line(&mut text)
         .expect("Error reading input");
-    
+
     text
 }
 
 fn display_results(results: &[(String, String)], duration: std::time::Duration) {
-    println!("⏱️  Synchronous processing completed in {:.2}ms", duration.as_millis());
+    println!(
+        "⏱️  Synchronous processing completed in {:.2}ms",
+        duration.as_millis()
+    );
     println!("📊 Summary: {} URL(s) processed", results.len());
     println!();
 

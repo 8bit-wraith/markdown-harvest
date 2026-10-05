@@ -1,11 +1,13 @@
-use markdown_harvest::{MarkdownHarvester, HttpConfig};
+use markdown_harvest::{HttpConfig, MarkdownHarvester};
 use std::io::{self, Write};
 
 fn main() {
     println!("🦀 Markdown Harvest - Synchronous Chunking Example");
     println!("==================================================");
     println!();
-    println!("This example demonstrates the synchronous get_hyperlinks_content_as_chunks function.");
+    println!(
+        "This example demonstrates the synchronous get_hyperlinks_content_as_chunks function."
+    );
     println!("URLs will be processed and content split into semantic chunks for RAG systems.");
     println!();
 
@@ -17,9 +19,9 @@ fn main() {
 
     // Configure HTTP settings
     let http_config = HttpConfig::builder()
-        .timeout(30000)         // 30 second timeout
-        .max_redirect(3)        // Allow up to 3 redirects
-        .cookie_store(true)     // Enable cookie storage
+        .timeout(30000) // 30 second timeout
+        .max_redirect(3) // Allow up to 3 redirects
+        .cookie_store(true) // Enable cookie storage
         .build();
 
     println!("\n🔄 Processing URLs and creating chunks synchronously...");
@@ -33,15 +35,15 @@ fn main() {
     println!();
 
     let start_time = std::time::Instant::now();
-    
+
     // Process URLs and create chunks synchronously
     let results = MarkdownHarvester::get_hyperlinks_content_as_chunks(
-        text, 
-        http_config, 
-        chunk_size, 
-        chunk_overlap
+        text,
+        http_config,
+        chunk_size,
+        chunk_overlap,
     );
-    
+
     let duration = start_time.elapsed();
 
     // Display results
@@ -59,7 +61,7 @@ fn get_user_input() -> String {
     io::stdin()
         .read_line(&mut text)
         .expect("Error reading input");
-    
+
     text
 }
 
@@ -74,7 +76,9 @@ fn get_chunk_config() -> (usize, Option<usize>) {
     io::stdout().flush().expect("Failed to flush stdout");
 
     let mut choice = String::new();
-    io::stdin().read_line(&mut choice).expect("Error reading input");
+    io::stdin()
+        .read_line(&mut choice)
+        .expect("Error reading input");
 
     let chunk_size = match choice.trim() {
         "1" => 1000,
@@ -84,7 +88,9 @@ fn get_chunk_config() -> (usize, Option<usize>) {
             print!("Enter custom chunk size: ");
             io::stdout().flush().expect("Failed to flush stdout");
             let mut size = String::new();
-            io::stdin().read_line(&mut size).expect("Error reading input");
+            io::stdin()
+                .read_line(&mut size)
+                .expect("Error reading input");
             size.trim().parse().unwrap_or(1000)
         }
         _ => {
@@ -103,7 +109,9 @@ fn get_chunk_config() -> (usize, Option<usize>) {
     io::stdout().flush().expect("Failed to flush stdout");
 
     let mut overlap_choice = String::new();
-    io::stdin().read_line(&mut overlap_choice).expect("Error reading input");
+    io::stdin()
+        .read_line(&mut overlap_choice)
+        .expect("Error reading input");
 
     let chunk_overlap = match overlap_choice.trim() {
         "1" => None,
@@ -113,7 +121,9 @@ fn get_chunk_config() -> (usize, Option<usize>) {
             print!("Enter custom overlap size: ");
             io::stdout().flush().expect("Failed to flush stdout");
             let mut overlap = String::new();
-            io::stdin().read_line(&mut overlap).expect("Error reading input");
+            io::stdin()
+                .read_line(&mut overlap)
+                .expect("Error reading input");
             overlap.trim().parse().ok()
         }
         _ => {
@@ -126,14 +136,17 @@ fn get_chunk_config() -> (usize, Option<usize>) {
 }
 
 fn display_results(
-    results: &[(String, Vec<String>)], 
-    duration: std::time::Duration, 
+    results: &[(String, Vec<String>)],
+    duration: std::time::Duration,
     chunk_size: usize,
-    chunk_overlap: Option<usize>
+    chunk_overlap: Option<usize>,
 ) {
-    println!("⏱️  Synchronous chunking completed in {:.2}ms", duration.as_millis());
+    println!(
+        "⏱️  Synchronous chunking completed in {:.2}ms",
+        duration.as_millis()
+    );
     println!("📊 Summary: {} URL(s) processed", results.len());
-    
+
     let total_chunks: usize = results.iter().map(|(_, chunks)| chunks.len()).sum();
     println!("📦 Total chunks created: {}", total_chunks);
     println!();
@@ -151,7 +164,7 @@ fn display_results(
 
         for (chunk_idx, chunk) in chunks.iter().enumerate() {
             println!("   📝 Chunk #{}: {} characters", chunk_idx + 1, chunk.len());
-            
+
             // Show chunk preview
             let preview = if chunk.chars().count() > 150 {
                 let truncated: String = chunk.chars().take(100).collect();
@@ -163,7 +176,7 @@ fn display_results(
             println!("   Content: {}", preview);
             println!();
         }
-        
+
         println!("{}", "─".repeat(80));
     }
 
@@ -173,8 +186,11 @@ fn display_results(
     println!("💡 Configuration used:");
     println!("   📦 Chunk size: {} characters", chunk_size);
     if let Some(overlap) = chunk_overlap {
-        println!("   🔗 Chunk overlap: {} characters ({:.1}%)", 
-                overlap, (overlap as f64 / chunk_size as f64) * 100.0);
+        println!(
+            "   🔗 Chunk overlap: {} characters ({:.1}%)",
+            overlap,
+            (overlap as f64 / chunk_size as f64) * 100.0
+        );
     } else {
         println!("   🔗 No chunk overlap");
     }

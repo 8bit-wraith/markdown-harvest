@@ -1,4 +1,4 @@
-use markdown_harvest::{MarkdownHarvester, HttpConfig};
+use markdown_harvest::{HttpConfig, MarkdownHarvester};
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 
@@ -16,9 +16,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Configure HTTP settings
     let http_config = HttpConfig::builder()
-        .timeout(30000)         // 30 second timeout
-        .max_redirect(3)        // Allow up to 3 redirects
-        .cookie_store(true)     // Enable cookie storage
+        .timeout(30000) // 30 second timeout
+        .max_redirect(3) // Allow up to 3 redirects
+        .cookie_store(true) // Enable cookie storage
         .build();
 
     println!("\n⚡ Processing URLs asynchronously...");
@@ -75,7 +75,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let duration = start_time.elapsed();
     let final_count = *processed_count.lock().unwrap();
 
-    println!("⏱️  Asynchronous processing completed in {:.2}ms", duration.as_millis());
+    println!(
+        "⏱️  Asynchronous processing completed in {:.2}ms",
+        duration.as_millis()
+    );
     println!("📊 Total URLs processed: {}", final_count);
     println!("✅ Asynchronous processing example completed!");
     println!();
@@ -99,6 +102,6 @@ fn get_user_input() -> String {
     io::stdin()
         .read_line(&mut text)
         .expect("Error reading input");
-    
+
     text
 }
