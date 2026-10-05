@@ -190,31 +190,36 @@ where
 }
 
 fn build_client(http_config: HttpConfig) -> blocking::Client {
-    match http_config.timeout() {
-        Some(timeout) => blocking::Client::builder()
-            .timeout(Duration::from_millis(timeout))
-            .redirect(reqwest::redirect::Policy::limited(
-                http_config.max_redirect().unwrap_or(2),
-            ))
-            .cookie_store(http_config.cookie_store())
-            .build()
-            .unwrap_or_else(|_| blocking::Client::new()),
-        None => blocking::Client::new(),
+    let mut builder = blocking::Client::builder().cookie_store(http_config.cookie_store());
+    if let Some(timeout) = http_config.timeout() {
+        builder = builder.timeout(Duration::from_millis(timeout));
     }
+    // Preserve the existing default limits while honoring an explicit limit independently.
+    if let Some(limit) = http_config
+        .max_redirect()
+        .or(http_config.timeout().map(|_| 2))
+    {
+        builder = builder.redirect(reqwest::redirect::Policy::limited(limit));
+    }
+    builder
+        .build()
+        .expect("failed to build configured HTTP client")
 }
 
 fn build_client_async(http_config: HttpConfig) -> Client {
-    match http_config.timeout() {
-        Some(timeout) => Client::builder()
-            .timeout(Duration::from_millis(timeout))
-            .redirect(reqwest::redirect::Policy::limited(
-                http_config.max_redirect().unwrap_or(2),
-            ))
-            .cookie_store(http_config.cookie_store())
-            .build()
-            .unwrap_or_else(|_| Client::new()),
-        None => Client::new(),
+    let mut builder = Client::builder().cookie_store(http_config.cookie_store());
+    if let Some(timeout) = http_config.timeout() {
+        builder = builder.timeout(Duration::from_millis(timeout));
     }
+    if let Some(limit) = http_config
+        .max_redirect()
+        .or(http_config.timeout().map(|_| 2))
+    {
+        builder = builder.redirect(reqwest::redirect::Policy::limited(limit));
+    }
+    builder
+        .build()
+        .expect("failed to build configured HTTP client")
 }
 
 fn clean_url(url: &str) -> String {
@@ -549,5 +554,162 @@ mod tests {
             std::mem::size_of_val(&client),
             std::mem::size_of::<Client>()
         );
+    }
+}
+
+#[cfg(test)]
+mod config_regressions {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    // Two independent requests: set a cookie, then observe whether it is sent.
+    fn fixture() -> (String, std::thread::JoinHandle<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        listener.set_nonblocking(true).unwrap();
+        let worker = std::thread::spawn(move || {
+            let deadline = std::time::Instant::now() + Duration::from_secs(5);
+            let mut requests = Vec::new();
+            while requests.len() < 2 {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        stream
+                            .set_read_timeout(Some(Duration::from_secs(1)))
+                            .unwrap();
+                        let mut request = Vec::new();
+                        let mut buf = [0; 1024];
+                        while !request.ends_with(b"\r\n\r\n") {
+                            let n = stream.read(&mut buf).unwrap();
+                            assert!(n > 0);
+                            request.extend_from_slice(&buf[..n]);
+                        }
+                        requests.push(String::from_utf8(request).unwrap());
+                        stream.write_all(b"HTTP/1.1 200 OK\r\nSet-Cookie: session=test; Path=/\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok").unwrap();
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        assert!(std::time::Instant::now() < deadline, "fixture timed out");
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                    Err(e) => panic!("{e}"),
+                }
+            }
+            requests.pop().unwrap().to_lowercase()
+        });
+        (url, worker)
+    }
+
+    #[test]
+    fn test_cookie_settings_with_optional_timeout_blocking() {
+        for timeout in [None, Some(2000)] {
+            for enabled in [false, true] {
+                let (url, worker) = fixture();
+                let mut config = HttpConfig::builder().cookie_store(enabled);
+                if let Some(ms) = timeout {
+                    config = config.timeout(ms);
+                }
+                let client = build_client(config.build());
+                for _ in 0..2 {
+                    assert_eq!(
+                        client
+                            .get(&url)
+                            .timeout(Duration::from_secs(2))
+                            .send()
+                            .unwrap()
+                            .text()
+                            .unwrap(),
+                        "ok"
+                    );
+                }
+                assert_eq!(
+                    worker.join().unwrap().contains("cookie: session=test"),
+                    enabled
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cookie_settings_with_optional_timeout_async() {
+        for timeout in [None, Some(2000)] {
+            for enabled in [false, true] {
+                let (url, worker) = fixture();
+                let mut config = HttpConfig::builder().cookie_store(enabled);
+                if let Some(ms) = timeout {
+                    config = config.timeout(ms);
+                }
+                let client = build_client_async(config.build());
+                for _ in 0..2 {
+                    assert_eq!(
+                        client
+                            .get(&url)
+                            .timeout(Duration::from_secs(2))
+                            .send()
+                            .await
+                            .unwrap()
+                            .text()
+                            .await
+                            .unwrap(),
+                        "ok"
+                    );
+                }
+                assert_eq!(
+                    worker.join().unwrap().contains("cookie: session=test"),
+                    enabled
+                );
+            }
+        }
+    }
+    fn redirect_fixture() -> (String, std::thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        listener.set_nonblocking(true).unwrap();
+        let worker = std::thread::spawn(move || {
+            let deadline = std::time::Instant::now() + Duration::from_secs(5);
+            loop {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        stream
+                            .set_read_timeout(Some(Duration::from_secs(1)))
+                            .unwrap();
+                        let mut buf = [0; 4096];
+                        stream.read(&mut buf).unwrap();
+                        stream.write_all(b"HTTP/1.1 302 Found\r\nLocation: /again\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+                        break;
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        assert!(std::time::Instant::now() < deadline);
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                    Err(e) => panic!("{e}"),
+                }
+            }
+        });
+        (url, worker)
+    }
+
+    #[test]
+    fn test_redirect_limit_without_timeout_blocking() {
+        let (url, worker) = redirect_fixture();
+        let error = build_client(HttpConfig::builder().max_redirect(0).build())
+            .get(url)
+            .timeout(Duration::from_secs(2))
+            .send()
+            .unwrap_err();
+        worker.join().unwrap();
+        assert!(error.is_redirect(), "{error}");
+    }
+
+    #[tokio::test]
+    async fn test_redirect_limit_without_timeout_async() {
+        let (url, worker) = redirect_fixture();
+        let error = build_client_async(HttpConfig::builder().max_redirect(0).build())
+            .get(url)
+            .timeout(Duration::from_secs(2))
+            .send()
+            .await
+            .unwrap_err();
+        worker.join().unwrap();
+        assert!(error.is_redirect(), "{error}");
     }
 }
